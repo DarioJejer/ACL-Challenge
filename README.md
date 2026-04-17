@@ -22,3 +22,10 @@ Promotes separation of concerns, making the system easier to maintain, test, and
 - Application Layer (Use Cases): Orchestrates business workflows and coordinates between domain logic and external services.
 - Domain Layer (Entities & Interfaces): Contains core business logic, entities, and contracts, remaining independent from frameworks and infrastructure.
 - Infrastructure Layer (Persistence & External Services): Implements database access, external APIs, and other technical details.
+
+### Branching Strategy
+
+- main — production-ready code only, protected branch.
+- develop — integration branch; all feature branches merge here.
+- develop/feature/{feature name} — one branch per issue.
+- hotfix/ — emergency production patches.

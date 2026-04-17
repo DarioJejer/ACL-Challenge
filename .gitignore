@@ -1,0 +1,38 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+docker.env
+docker-compose.env
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+/vendor/
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# IDE & editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+/logs/
+
+# Build output
+/bin/
+/dist/
+/build/
