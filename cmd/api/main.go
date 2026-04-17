@@ -1,17 +1,13 @@
 package main
 
 import (
+	"acl-challenge/internal/api/router"
 	"log"
 	"os"
-
-	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	r := gin.Default()
-	r.GET("/", func(c *gin.Context) {
-		c.JSON(200, gin.H{"message": "Hello, World!"})
-	})
+	r := router.NewRouter(router.Dependencies{})
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
