@@ -1,144 +1,296 @@
 {
     "info": {
-    "name": "API v1 - Notifications Service",
-    "_postman_id": "a1b2c3d4-e5f6-7890-1234-56789abcdef0",
-    "description": "Collection for auth and notifications endpoints",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+        "name": "ACL-Challenge - API v1",
+        "_postman_id": "a1b2c3d4-e5f6-7890-1234-56789abcdef0",
+        "description": "Collection for ACL-Challenge API v1 endpoints with stubbed requests and responses",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
     },
     "variable": [
-    {
-    "key": "base_url",
-    "value": "http://localhost:8080",
-    "type": "string"
-    }
+        {
+            "key": "base_url",
+            "value": "http://localhost:8080",
+            "type": "string"
+        }
     ],
     "item": [
-    {
-    "name": "Auth",
-    "item": [
-    {
-    "name": "Register",
-    "request": {
-    "method": "POST",
-    "header": [
-    { "key": "Content-Type", "value": "application/json" }
-    ],
-    "body": {
-    "mode": "raw",
-    "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"123456\"\n}"
-    },
-    "url": {
-    "raw": "{{base_url}}/api/v1/auth/register",
-    "host": ["{{base_url}}"],
-    "path": ["api","v1","auth","register"]
-    }
-    }
-    },
-    {
-    "name": "Login",
-    "request": {
-    "method": "POST",
-    "header": [
-    { "key": "Content-Type", "value": "application/json" }
-    ],
-    "body": {
-    "mode": "raw",
-    "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"123456\"\n}"
-    },
-    "url": {
-    "raw": "{{base_url}}/api/v1/auth/login",
-    "host": ["{{base_url}}"],
-    "path": ["api","v1","auth","login"]
-    }
-    }
-    }
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Register",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"123456\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/register",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "register"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Login",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"123456\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/auth/login",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "auth",
+                                "login"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Users (Protected)",
+            "item": [                
+                {
+                    "name": "Update User",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"updated@example.com\",\n  \"name\": \"Updated Name\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/users/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "users",
+                                ":id"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/users/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "users",
+                                ":id"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Notifications (Protected)",
+            "item": [
+                {
+                    "name": "List Notifications",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notifications/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notifications",
+                                ""
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Create Notification",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Test\",\n  \"message\": \"Hello world\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notifications/",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notifications",
+                                ""
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Get Notification",
+                    "request": {
+                        "method": "GET",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notifications/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notifications",
+                                ":id"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Update Notification",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            },
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Updated\",\n  \"message\": \"Updated message\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notifications/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notifications",
+                                ":id"
+                            ]
+                        }
+                    }
+                },
+                {
+                    "name": "Delete Notification",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [
+                            {
+                                "key": "Authorization",
+                                "value": "Bearer {{token}}"
+                            }
+                        ],
+                        "url": {
+                            "raw": "{{base_url}}/api/v1/notifications/:id",
+                            "host": [
+                                "{{base_url}}"
+                            ],
+                            "path": [
+                                "api",
+                                "v1",
+                                "notifications",
+                                ":id"
+                            ]
+                        }
+                    }
+                }
+            ]
+        },
+        {
+            "name": "Health Check",
+            "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                    "raw": "{{base_url}}/health",
+                    "host": [
+                        "{{base_url}}"
+                    ],
+                    "path": [
+                        "health"
+                    ]
+                }
+            }
+        }
     ]
-    },
-    {
-    "name": "Notifications (Protected)",
-    "item": [
-    {
-    "name": "List Notifications",
-    "request": {
-    "method": "GET",
-    "header": [
-    { "key": "Authorization", "value": "Bearer {{token}}" }
-    ],
-    "url": {
-    "raw": "{{base_url}}/api/v1/notifications/",
-    "host": ["{{base_url}}"],
-    "path": ["api","v1","notifications",""]
-    }
-    }
-    },
-    {
-    "name": "Create Notification",
-    "request": {
-    "method": "POST",
-    "header": [
-    { "key": "Content-Type", "value": "application/json" },
-    { "key": "Authorization", "value": "Bearer {{token}}" }
-    ],
-    "body": {
-    "mode": "raw",
-    "raw": "{\n  \"title\": \"Test\",\n  \"message\": \"Hello world\"\n}"
-    },
-    "url": {
-    "raw": "{{base_url}}/api/v1/notifications/",
-    "host": ["{{base_url}}"],
-    "path": ["api","v1","notifications",""]
-    }
-    }
-    },
-    {
-    "name": "Get Notification",
-    "request": {
-    "method": "GET",
-    "header": [
-    { "key": "Authorization", "value": "Bearer {{token}}" }
-    ],
-    "url": {
-    "raw": "{{base_url}}/api/v1/notifications/:id",
-    "host": ["{{base_url}}"],
-    "path": ["api","v1","notifications",":id"]
-    }
-    }
-    },
-    {
-    "name": "Update Notification",
-    "request": {
-    "method": "PUT",
-    "header": [
-    { "key": "Content-Type", "value": "application/json" },
-    { "key": "Authorization", "value": "Bearer {{token}}" }
-    ],
-    "body": {
-    "mode": "raw",
-    "raw": "{\n  \"title\": \"Updated\",\n  \"message\": \"Updated message\"\n}"
-    },
-    "url": {
-    "raw": "{{base_url}}/api/v1/notifications/:id",
-    "host": ["{{base_url}}"],
-    "path": ["api","v1","notifications",":id"]
-    }
-    }
-    },
-    {
-    "name": "Delete Notification",
-    "request": {
-    "method": "DELETE",
-    "header": [
-    { "key": "Authorization", "value": "Bearer {{token}}" }
-    ],
-    "url": {
-    "raw": "{{base_url}}/api/v1/notifications/:id",
-    "host": ["{{base_url}}"],
-    "path": ["api","v1","notifications",":id"]
-    }
-    }
-    }
-    ]
-    }
-    ]
-    }
-    
+}

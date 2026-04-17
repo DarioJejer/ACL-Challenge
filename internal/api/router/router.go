@@ -35,6 +35,11 @@ func NewRouter(_ Dependencies) *gin.Engine {
 	notifications.PUT("/:id", handler.UpdateNotification)
 	notifications.DELETE("/:id", handler.DeleteNotification)
 
+	users := protected.Group("/users")
+
+	users.PUT("/:id", handler.UpdateUser)
+	users.DELETE("/:id", handler.DeleteUser)
+
 	return r
 }
 
