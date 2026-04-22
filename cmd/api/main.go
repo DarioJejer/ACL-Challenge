@@ -4,6 +4,7 @@ import (
 	"acl-challenge/internal/api/router"
 	"acl-challenge/internal/infrastructure/persistence"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -16,6 +17,9 @@ func main() {
 	if err != nil {
 		log.Fatal("Error loading .env file")
 	}
+
+	initLogger(getEnv("APP_ENV"))
+
 	db, err := persistence.NewDB(persistence.Config{
 		Host:     getEnv("DB_HOST"),
 		Port:     getEnv("DB_PORT"),
@@ -53,6 +57,16 @@ func main() {
 	if err := r.Run("0.0.0.0:" + port); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func initLogger(appEnv string) {
+	var logger *slog.Logger
+	if strings.EqualFold(strings.TrimSpace(appEnv), "production") {
+		logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	} else {
+		logger = slog.New(slog.NewTextHandler(os.Stdout, nil))
+	}
+	slog.SetDefault(logger)
 }
 
 func getEnv(key string) string {

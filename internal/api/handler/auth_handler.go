@@ -4,7 +4,8 @@ import (
 	"net/http"
 	"strings"
 
-	"acl-challenge/pkg/response"
+	"acl-challenge/internal/usecase"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -21,29 +22,29 @@ type loginRequest struct {
 func Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid request body")
+		respondWithError(c, usecase.ErrInvalidInput, "register request body invalid")
 		return
 	}
 
 	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
-		response.Error(c, http.StatusBadRequest, "email and password are required")
+		respondWithError(c, usecase.ErrInvalidInput, "register missing required fields")
 		return
 	}
 
-	response.Success(c, http.StatusCreated, gin.H{"message": "stub: user registered"})
+	Success(c, http.StatusCreated, gin.H{"message": "stub: user registered"})
 }
 
 func Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "invalid request body")
+		respondWithError(c, usecase.ErrInvalidInput, "login request body invalid")
 		return
 	}
 
 	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
-		response.Error(c, http.StatusBadRequest, "email and password are required")
+		respondWithError(c, usecase.ErrInvalidInput, "login missing required fields")
 		return
 	}
 
-	response.Success(c, http.StatusOK, gin.H{"token": "stub-token"})
+	Success(c, http.StatusOK, gin.H{"token": "stub-token"})
 }

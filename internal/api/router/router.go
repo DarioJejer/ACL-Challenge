@@ -2,6 +2,7 @@ package router
 
 import (
 	"acl-challenge/internal/api/handler"
+	"acl-challenge/internal/api/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -11,7 +12,9 @@ import (
 type Dependencies struct{}
 
 func NewRouter(_ Dependencies) *gin.Engine {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+	r.Use(middleware.RequestLogger())
 
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(200, gin.H{"status": "ok"})

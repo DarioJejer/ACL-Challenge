@@ -178,7 +178,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"title\": \"Test\",\n  \"message\": \"Hello world\"\n}"
+                            "raw": "{\n  \"recipient\": \"1\",\n  \"title\": \"Test\",\n  \"content\": \"Hello world\",\n  \"channel\": \"email\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/v1/notifications/",
@@ -234,7 +234,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"title\": \"Updated\",\n  \"message\": \"Updated message\"\n}"
+                            "raw": "{\n  \"title\": \"Updated\",\n  \"content\": \"Updated message\",\n  \"channel\": \"sms\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/v1/notifications/:id",
