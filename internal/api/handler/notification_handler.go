@@ -9,7 +9,7 @@ import (
 )
 
 type createNotificationRequest struct {
-	UserID  string `json:"user_id"`
+	Recipient string `json:"recipient"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
 	Channel string `json:"channel"`
@@ -32,11 +32,11 @@ func CreateNotification(c *gin.Context) {
 		return
 	}
 
-	if strings.TrimSpace(req.UserID) == "" ||
+	if strings.TrimSpace(req.Recipient) == "" ||
 		strings.TrimSpace(req.Title) == "" ||
 		strings.TrimSpace(req.Content) == "" ||
 		strings.TrimSpace(req.Channel) == "" {
-		response.Error(c, http.StatusBadRequest, "user_id, title, content and channel are required")
+		response.Error(c, http.StatusBadRequest, "recipient, title, content and channel are required")
 		return
 	}
 

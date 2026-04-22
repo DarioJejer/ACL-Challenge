@@ -36,3 +36,6 @@ Thumbs.db
 /bin/
 /dist/
 /build/
+
+# Agent / AI tooling (local only; not committed)
+/agent/

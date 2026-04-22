@@ -25,7 +25,7 @@ func ToUserEntity(model UserModel) entity.User {
 func ToNotificationModel(notification entity.Notification) NotificationModel {
 	return NotificationModel{
 		ID:        notification.ID,
-		UserID:    notification.Recipient,
+		Recipient: notification.Recipient,
 		Title:     notification.Title,
 		Content:   notification.Content,
 		Channel:   string(notification.Channel),
@@ -37,7 +37,7 @@ func ToNotificationModel(notification entity.Notification) NotificationModel {
 func ToNotificationEntity(model NotificationModel) entity.Notification {
 	return entity.Notification{
 		ID:        model.ID,
-		Recipient: model.UserID,
+		Recipient: model.Recipient,
 		Title:     model.Title,
 		Content:   model.Content,
 		Channel:   entity.Channel(model.Channel),
