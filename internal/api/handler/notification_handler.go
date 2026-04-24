@@ -29,7 +29,7 @@ func ListNotifications(c *gin.Context) {
 func CreateNotification(c *gin.Context) {
 	var req createNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondWithError(c, usecase.ErrInvalidInput, "create notification request body invalid")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "create notification request body invalid")
 		return
 	}
 
@@ -37,7 +37,7 @@ func CreateNotification(c *gin.Context) {
 		strings.TrimSpace(req.Title) == "" ||
 		strings.TrimSpace(req.Content) == "" ||
 		strings.TrimSpace(req.Channel) == "" {
-		respondWithError(c, usecase.ErrInvalidInput, "create notification missing required fields")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "create notification missing required fields")
 		return
 	}
 
@@ -47,7 +47,7 @@ func CreateNotification(c *gin.Context) {
 func GetNotification(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		respondWithError(c, usecase.ErrInvalidInput, "get notification id is required")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "get notification id is required")
 		return
 	}
 
@@ -57,20 +57,20 @@ func GetNotification(c *gin.Context) {
 func UpdateNotification(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		respondWithError(c, usecase.ErrInvalidInput, "update notification id is required")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "update notification id is required")
 		return
 	}
 
 	var req updateNotificationRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondWithError(c, usecase.ErrInvalidInput, "update notification request body invalid")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "update notification request body invalid")
 		return
 	}
 
 	if strings.TrimSpace(req.Title) == "" &&
 		strings.TrimSpace(req.Content) == "" &&
 		strings.TrimSpace(req.Channel) == "" {
-		respondWithError(c, usecase.ErrInvalidInput, "update notification has no fields to update")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "update notification has no fields to update")
 		return
 	}
 
@@ -80,7 +80,7 @@ func UpdateNotification(c *gin.Context) {
 func DeleteNotification(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
-		respondWithError(c, usecase.ErrInvalidInput, "delete notification id is required")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "delete notification id is required")
 		return
 	}
 

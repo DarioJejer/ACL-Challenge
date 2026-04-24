@@ -7,7 +7,6 @@ import (
 
 	"acl-challenge/internal/domain/entity"
 	domainrepo "acl-challenge/internal/domain/repository"
-	"acl-challenge/internal/usecase"
 
 	"gorm.io/gorm"
 )
@@ -23,7 +22,7 @@ func NewNotificationRepository(db *gorm.DB) domainrepo.INotificationRepository {
 func (r *notificationRepository) Create(ctx context.Context, n *entity.Notification) error {
 	model := toNotificationModel(*n)
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
-		return fmt.Errorf("notification repository create: %w", usecase.ErrDatabase)
+		return fmt.Errorf("repository error: notification create failed: %w", err)
 	}
 
 	*n = toNotificationDomain(model)
@@ -34,9 +33,9 @@ func (r *notificationRepository) FindByID(ctx context.Context, id string) (*enti
 	var model NotificationModel
 	if err := r.db.WithContext(ctx).First(&model, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, usecase.ErrNotFound
+			return nil, fmt.Errorf("repository error: notification not found: %w", err)
 		}
-		return nil, fmt.Errorf("notification repository find by id: %w", usecase.ErrDatabase)
+		return nil, fmt.Errorf("repository error: notification find by id failed: %w", err)
 	}
 
 	domain := toNotificationDomain(model)
@@ -46,7 +45,7 @@ func (r *notificationRepository) FindByID(ctx context.Context, id string) (*enti
 func (r *notificationRepository) FindAllByUserID(ctx context.Context, userID string) ([]entity.Notification, error) {
 	var models []NotificationModel
 	if err := r.db.WithContext(ctx).Where("recipient = ?", userID).Find(&models).Error; err != nil {
-		return nil, fmt.Errorf("notification repository find all by user id: %w", usecase.ErrDatabase)
+		return nil, fmt.Errorf("repository error: notification find all by user id failed: %w", err)
 	}
 
 	notifications := make([]entity.Notification, 0, len(models))
@@ -70,10 +69,10 @@ func (r *notificationRepository) Update(ctx context.Context, n *entity.Notificat
 			"updated_at": model.UpdatedAt,
 		})
 	if result.Error != nil {
-		return fmt.Errorf("notification repository update: %w", usecase.ErrDatabase)
+		return fmt.Errorf("repository error: notification update failed: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return usecase.ErrNotFound
+		return fmt.Errorf("repository error: notification not found: %w", gorm.ErrRecordNotFound)
 	}
 
 	return nil
@@ -82,10 +81,10 @@ func (r *notificationRepository) Update(ctx context.Context, n *entity.Notificat
 func (r *notificationRepository) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&NotificationModel{}, "id = ?", id)
 	if result.Error != nil {
-		return fmt.Errorf("notification repository delete: %w", usecase.ErrDatabase)
+		return fmt.Errorf("repository error: notification delete failed: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return usecase.ErrNotFound
+		return fmt.Errorf("repository error: notification not found: %w", gorm.ErrRecordNotFound)
 	}
 
 	return nil

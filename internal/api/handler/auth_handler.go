@@ -22,12 +22,12 @@ type loginRequest struct {
 func Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondWithError(c, usecase.ErrInvalidInput, "register request body invalid")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "register request body invalid")
 		return
 	}
 
 	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
-		respondWithError(c, usecase.ErrInvalidInput, "register missing required fields")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "register missing required fields")
 		return
 	}
 
@@ -37,12 +37,12 @@ func Register(c *gin.Context) {
 func Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		respondWithError(c, usecase.ErrInvalidInput, "login request body invalid")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "login request body invalid")
 		return
 	}
 
 	if strings.TrimSpace(req.Email) == "" || strings.TrimSpace(req.Password) == "" {
-		respondWithError(c, usecase.ErrInvalidInput, "login missing required fields")
+		logAndRespondWithError(c, usecase.ErrInvalidInput, "login missing required fields")
 		return
 	}
 

@@ -7,7 +7,6 @@ import (
 
 	"acl-challenge/internal/domain/entity"
 	domainrepo "acl-challenge/internal/domain/repository"
-	"acl-challenge/internal/usecase"
 
 	"gorm.io/gorm"
 )
@@ -23,7 +22,7 @@ func NewUserRepository(db *gorm.DB) domainrepo.IUserRepository {
 func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
 	model := toUserModel(*user)
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
-		return fmt.Errorf("user repository create: %w", usecase.ErrDatabase)
+		return fmt.Errorf("repository error: user create failed: %w", err)
 	}
 
 	*user = toUserDomain(model)
@@ -34,9 +33,9 @@ func (r *userRepository) FindByID(ctx context.Context, id string) (*entity.User,
 	var model UserModel
 	if err := r.db.WithContext(ctx).First(&model, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, usecase.ErrNotFound
+			return nil, fmt.Errorf("repository error: user not found: %w", err)
 		}
-		return nil, fmt.Errorf("user repository find by id: %w", usecase.ErrDatabase)
+		return nil, fmt.Errorf("repository error: user find by id failed: %w", err)
 	}
 
 	domain := toUserDomain(model)
@@ -47,9 +46,9 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*entity
 	var model UserModel
 	if err := r.db.WithContext(ctx).First(&model, "email = ?", email).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, usecase.ErrNotFound
+			return nil, fmt.Errorf("repository error: user not found: %w", err)
 		}
-		return nil, fmt.Errorf("user repository find by email: %w", usecase.ErrDatabase)
+		return nil, fmt.Errorf("repository error: user find by email failed: %w", err)
 	}
 
 	domain := toUserDomain(model)
@@ -67,10 +66,10 @@ func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
 			"updated_at":    model.UpdatedAt,
 		})
 	if result.Error != nil {
-		return fmt.Errorf("user repository update: %w", usecase.ErrDatabase)
+		return fmt.Errorf("repository error: user update failed: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return usecase.ErrNotFound
+		return fmt.Errorf("repository error: user not found: %w", gorm.ErrRecordNotFound)
 	}
 
 	return nil
@@ -79,10 +78,10 @@ func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
 func (r *userRepository) Delete(ctx context.Context, id string) error {
 	result := r.db.WithContext(ctx).Delete(&UserModel{}, "id = ?", id)
 	if result.Error != nil {
-		return fmt.Errorf("user repository delete: %w", usecase.ErrDatabase)
+		return fmt.Errorf("repository error: user delete failed: %w", result.Error)
 	}
 	if result.RowsAffected == 0 {
-		return usecase.ErrNotFound
+		return fmt.Errorf("repository error: user not found: %w", gorm.ErrRecordNotFound)
 	}
 
 	return nil

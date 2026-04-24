@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func respondWithError(c *gin.Context, err error, message string) {
+func logAndRespondWithError(c *gin.Context, err error, message string) {
 	logAttrs := []any{
 		"method", c.Request.Method,
 		"path", c.Request.URL.Path,

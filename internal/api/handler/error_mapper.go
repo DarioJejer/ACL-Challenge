@@ -9,26 +9,44 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func HTTPStatusFromError(err error) int {
+type Envelope struct {
+	Success bool        `json:"success"`
+	Data    interface{} `json:"data,omitempty"`
+	Code    string      `json:"code,omitempty"`
+	Message string      `json:"message,omitempty"`
+}
+
+type ErrorResponseCode string
+
+const (
+	NotFound            ErrorResponseCode = "NOT_FOUND"
+	Conflict            ErrorResponseCode = "CONFLICT"
+	InvalidInput        ErrorResponseCode = "INVALID_INPUT"
+	UnsupportedChannel  ErrorResponseCode = "UNSUPPORTED_CHANNEL"
+	DatabaseError       ErrorResponseCode = "DATABASE_ERROR"
+	InternalServerError ErrorResponseCode = "INTERNAL_SERVER_ERROR"
+)
+
+func HTTPResponseFromError(err error) (int, Envelope) {
 	switch {
 	case errors.Is(err, usecase.ErrNotFound):
-		return http.StatusNotFound
+		return http.StatusNotFound, Envelope{Success: false, Code: string(NotFound), Message: usecase.ErrNotFound.Error()}
 	case errors.Is(err, usecase.ErrConflict):
-		return http.StatusConflict
+		return http.StatusConflict, Envelope{Success: false, Code: string(Conflict), Message: usecase.ErrConflict.Error()}
 	case errors.Is(err, usecase.ErrInvalidInput):
-		return http.StatusBadRequest
+		return http.StatusBadRequest, Envelope{Success: false, Code: string(InvalidInput), Message: usecase.ErrInvalidInput.Error()}
 	case errors.Is(err, usecase.ErrUnsupportedChannel):
-		return http.StatusUnprocessableEntity
+		return http.StatusUnprocessableEntity, Envelope{Success: false, Code: string(UnsupportedChannel), Message: usecase.ErrUnsupportedChannel.Error()}
 	case errors.Is(err, usecase.ErrDatabase):
-		return http.StatusServiceUnavailable
+		return http.StatusInternalServerError, Envelope{Success: false, Code: string(DatabaseError), Message: usecase.ErrDatabase.Error()}
 	case errors.Is(err, usecase.ErrInternalServer):
-		return http.StatusInternalServerError
+		return http.StatusInternalServerError, Envelope{Success: false, Code: string(InternalServerError), Message: usecase.ErrInternalServer.Error()}
 	default:
-		return http.StatusInternalServerError
+		return http.StatusInternalServerError, Envelope{Success: false, Code: string(InternalServerError), Message: err.Error()}
 	}
 }
 
 func ErrorResponse(c *gin.Context, err error) {
-	statusCode := HTTPStatusFromError(err)
-	Error(c, statusCode, err.Error())
+	statusCode, envelope := HTTPResponseFromError(err)
+	c.JSON(statusCode, envelope)
 }
