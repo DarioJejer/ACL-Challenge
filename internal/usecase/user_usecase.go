@@ -18,11 +18,6 @@ type UserUseCase struct {
 	repo repository.IUserRepository
 }
 
-type UpdateUserDTO struct {
-	Email        string `json:"email"`
-	PasswordHash string `json:"password_hash"`
-}
-
 func NewUserUseCase(repo repository.IUserRepository) *UserUseCase {
 	return &UserUseCase{repo: repo}
 }
