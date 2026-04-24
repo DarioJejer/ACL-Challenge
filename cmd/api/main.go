@@ -2,6 +2,8 @@ package main
 
 import (
 	"acl-challenge/internal/api/router"
+	"acl-challenge/internal/domain/entity"
+	notificationinfra "acl-challenge/internal/infrastructure/notification"
 	"acl-challenge/internal/infrastructure/persistence"
 	"log"
 	"log/slog"
@@ -47,6 +49,13 @@ func main() {
 			log.Fatalf("database startup failed: migrations failed: %v", err)
 		}
 	}
+
+	senderRegistry := notificationinfra.SenderRegistry{
+		entity.ChannelEmail:            &notificationinfra.EmailSender{},
+		entity.ChannelSMS:              &notificationinfra.SMSSender{},
+		entity.ChannelPushNotification: &notificationinfra.PushSender{},
+	}
+	_ = senderRegistry
 
 	r := router.NewRouter(router.Dependencies{})
 	port := os.Getenv("APP_PORT")
