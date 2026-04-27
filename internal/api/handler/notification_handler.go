@@ -4,30 +4,38 @@ import (
 	"net/http"
 	"strings"
 
+	"acl-challenge/internal/api/dtos/request"
 	"acl-challenge/internal/usecase"
 
 	"github.com/gin-gonic/gin"
 )
 
-type createNotificationRequest struct {
-	Recipient string `json:"recipient"`
-	Title     string `json:"title"`
-	Content   string `json:"content"`
-	Channel   string `json:"channel"`
+type NotificationHandler struct {
+	notifUC *usecase.NotificationUseCase
 }
 
-type updateNotificationRequest struct {
-	Title   string `json:"title"`
-	Content string `json:"content"`
-	Channel string `json:"channel"`
+func NewNotificationHandler(notifUC *usecase.NotificationUseCase) *NotificationHandler {
+	return &NotificationHandler{notifUC: notifUC}
 }
 
-func ListNotifications(c *gin.Context) {
-	Success(c, http.StatusOK, []interface{}{})
+func (h *NotificationHandler) ListNotifications(c *gin.Context) {
+	userID := strings.TrimSpace(c.Param("userID"))
+	// TODO(auth): replace with JWT context
+	if userID == "" {
+		userID = "00000000-0000-0000-0000-000000000001"
+	}
+
+	notifications, err := h.notifUC.ListNotifications(c.Request.Context(), userID)
+	if err != nil {
+		logAndRespondWithError(c, err, "list notifications failed")
+		return
+	}
+
+	Success(c, http.StatusOK, toNotificationDTOList(notifications))
 }
 
-func CreateNotification(c *gin.Context) {
-	var req createNotificationRequest
+func (h *NotificationHandler) CreateNotification(c *gin.Context) {
+	var req request.ResquestNotificationDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "create notification request body invalid")
 		return
@@ -36,32 +44,44 @@ func CreateNotification(c *gin.Context) {
 	if strings.TrimSpace(req.Recipient) == "" ||
 		strings.TrimSpace(req.Title) == "" ||
 		strings.TrimSpace(req.Content) == "" ||
-		strings.TrimSpace(req.Channel) == "" {
+		strings.TrimSpace(string(req.Channel)) == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "create notification missing required fields")
 		return
 	}
 
-	Success(c, http.StatusCreated, gin.H{"message": "stub: created"})
+	notification, err := h.notifUC.CreateNotification(c.Request.Context(), req)
+	if err != nil {
+		logAndRespondWithError(c, err, "create notification failed")
+		return
+	}
+
+	Success(c, http.StatusCreated, toNotificationDTO(notification))
 }
 
-func GetNotification(c *gin.Context) {
+func (h *NotificationHandler) GetNotification(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "get notification id is required")
 		return
 	}
 
-	Success(c, http.StatusOK, gin.H{"id": id})
+	notification, err := h.notifUC.GetNotification(c.Request.Context(), id)
+	if err != nil {
+		logAndRespondWithError(c, err, "get notification failed")
+		return
+	}
+
+	Success(c, http.StatusOK, toNotificationDTO(notification))
 }
 
-func UpdateNotification(c *gin.Context) {
+func (h *NotificationHandler) UpdateNotification(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "update notification id is required")
 		return
 	}
 
-	var req updateNotificationRequest
+	var req request.ResquestNotificationDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "update notification request body invalid")
 		return
@@ -69,18 +89,30 @@ func UpdateNotification(c *gin.Context) {
 
 	if strings.TrimSpace(req.Title) == "" &&
 		strings.TrimSpace(req.Content) == "" &&
-		strings.TrimSpace(req.Channel) == "" {
+		strings.TrimSpace(string(req.Channel)) == "" &&
+		strings.TrimSpace(req.Recipient) == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "update notification has no fields to update")
 		return
 	}
 
-	Success(c, http.StatusOK, gin.H{"message": "stub: updated"})
+	notification, err := h.notifUC.UpdateNotification(c.Request.Context(), id, req)
+	if err != nil {
+		logAndRespondWithError(c, err, "update notification failed")
+		return
+	}
+
+	Success(c, http.StatusOK, toNotificationDTO(notification))
 }
 
-func DeleteNotification(c *gin.Context) {
+func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "delete notification id is required")
+		return
+	}
+
+	if err := h.notifUC.DeleteNotification(c.Request.Context(), id); err != nil {
+		logAndRespondWithError(c, err, "delete notification failed")
 		return
 	}
 

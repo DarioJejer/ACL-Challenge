@@ -11,6 +11,8 @@ import (
 	"acl-challenge/internal/domain/entity"
 	domainnotification "acl-challenge/internal/domain/notification"
 	"acl-challenge/internal/domain/repository"
+
+	"github.com/google/uuid"
 )
 
 type NotificationUseCase struct {
@@ -66,7 +68,7 @@ func (uc *NotificationUseCase) CreateNotification(ctx context.Context, input req
 	}
 
 	notification := &entity.Notification{
-		Recipient: input.Recipient,
+		Recipient: uuid.MustParse(input.Recipient),
 		Title:     input.Title,
 		Content:   input.Content,
 		Channel:   input.Channel,
@@ -101,13 +103,12 @@ func (uc *NotificationUseCase) UpdateNotification(ctx context.Context, id string
 		return nil, mapRepositoryError("usecase: notification: update: find", err)
 	}
 
-	_, err = uc.userRepo.FindByID(ctx, input.Recipient)
-	if err != nil {
-		return nil, mapRepositoryError("usecase: notification: update: find user", err)
-	}
-
 	if strings.TrimSpace(input.Recipient) != "" {
-		notification.Recipient = input.Recipient
+		_, err = uc.userRepo.FindByID(ctx, input.Recipient)
+		if err != nil {
+			return nil, mapRepositoryError("usecase: notification: update: find user", err)
+		}
+		notification.Recipient = uuid.MustParse(input.Recipient)
 	}
 	if strings.TrimSpace(input.Title) != "" {
 		notification.Title = input.Title
@@ -116,6 +117,9 @@ func (uc *NotificationUseCase) UpdateNotification(ctx context.Context, id string
 		notification.Content = input.Content
 	}
 	if strings.TrimSpace(string(input.Channel)) != "" {
+		if !entity.IsSupportedChannel(input.Channel) {
+			return nil, fmt.Errorf("usecase: notification: update: invalid channel: %w", ErrUnsupportedChannel)
+		}
 		notification.Channel = input.Channel
 	}
 

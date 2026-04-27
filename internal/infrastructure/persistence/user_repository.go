@@ -20,12 +20,12 @@ func NewUserRepository(db *gorm.DB) domainrepo.IUserRepository {
 }
 
 func (r *userRepository) Create(ctx context.Context, user *entity.User) error {
-	model := toUserModel(*user)
+	model := ToUserModel(*user)
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
 		return fmt.Errorf("repository error: user create failed: %w", err)
 	}
 
-	*user = toUserDomain(model)
+	*user = ToUserEntity(model)
 	return nil
 }
 
@@ -38,7 +38,7 @@ func (r *userRepository) FindByID(ctx context.Context, id string) (*entity.User,
 		return nil, fmt.Errorf("repository error: user find by id failed: %w", err)
 	}
 
-	domain := toUserDomain(model)
+	domain := ToUserEntity(model)
 	return &domain, nil
 }
 
@@ -51,12 +51,12 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*entity
 		return nil, fmt.Errorf("repository error: user find by email failed: %w", err)
 	}
 
-	domain := toUserDomain(model)
+	domain := ToUserEntity(model)
 	return &domain, nil
 }
 
 func (r *userRepository) Update(ctx context.Context, user *entity.User) error {
-	model := toUserModel(*user)
+	model := ToUserModel(*user)
 	result := r.db.WithContext(ctx).
 		Model(&UserModel{}).
 		Where("id = ?", user.ID).
@@ -85,24 +85,4 @@ func (r *userRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
-}
-
-func toUserModel(user entity.User) UserModel {
-	return UserModel{
-		ID:           user.ID,
-		Email:        user.Email,
-		PasswordHash: user.PasswordHash,
-		CreatedAt:    user.CreatedAt,
-		UpdatedAt:    user.UpdatedAt,
-	}
-}
-
-func toUserDomain(model UserModel) entity.User {
-	return entity.User{
-		ID:           model.ID,
-		Email:        model.Email,
-		PasswordHash: model.PasswordHash,
-		CreatedAt:    model.CreatedAt,
-		UpdatedAt:    model.UpdatedAt,
-	}
 }

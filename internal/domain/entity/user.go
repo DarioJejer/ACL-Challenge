@@ -1,10 +1,14 @@
 package entity
 
-import "time"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 // User is the canonical domain representation of an application user.
 type User struct {
-	ID           string
+	ID           uuid.UUID
 	Email        string
 	PasswordHash string
 	CreatedAt    time.Time

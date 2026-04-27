@@ -31,7 +31,7 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	Success(c, http.StatusCreated, gin.H{"message": "stub: user registered"})
+	Success(c, http.StatusCreated, gin.H{"message": "user registered"})
 }
 
 func Login(c *gin.Context) {
@@ -46,5 +46,5 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	Success(c, http.StatusOK, gin.H{"token": "stub-token"})
+	Success(c, http.StatusOK, gin.H{"token": "token"})
 }

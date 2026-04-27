@@ -1,6 +1,8 @@
 package persistence
 
-import "acl-challenge/internal/domain/entity"
+import (
+	"acl-challenge/internal/domain/entity"
+)
 
 func ToUserModel(user entity.User) UserModel {
 	return UserModel{

@@ -20,12 +20,12 @@ func NewNotificationRepository(db *gorm.DB) domainrepo.INotificationRepository {
 }
 
 func (r *notificationRepository) Create(ctx context.Context, n *entity.Notification) error {
-	model := toNotificationModel(*n)
+	model := ToNotificationModel(*n)
 	if err := r.db.WithContext(ctx).Create(&model).Error; err != nil {
 		return fmt.Errorf("repository error: notification create failed: %w", err)
 	}
 
-	*n = toNotificationDomain(model)
+	*n = ToNotificationEntity(model)
 	return nil
 }
 
@@ -38,7 +38,7 @@ func (r *notificationRepository) FindByID(ctx context.Context, id string) (*enti
 		return nil, fmt.Errorf("repository error: notification find by id failed: %w", err)
 	}
 
-	domain := toNotificationDomain(model)
+	domain := ToNotificationEntity(model)
 	return &domain, nil
 }
 
@@ -50,14 +50,14 @@ func (r *notificationRepository) FindAllByUserID(ctx context.Context, userID str
 
 	notifications := make([]entity.Notification, 0, len(models))
 	for _, model := range models {
-		notifications = append(notifications, toNotificationDomain(model))
+		notifications = append(notifications, ToNotificationEntity(model))
 	}
 
 	return notifications, nil
 }
 
 func (r *notificationRepository) Update(ctx context.Context, n *entity.Notification) error {
-	model := toNotificationModel(*n)
+	model := ToNotificationModel(*n)
 	result := r.db.WithContext(ctx).
 		Model(&NotificationModel{}).
 		Where("id = ?", n.ID).
@@ -88,28 +88,4 @@ func (r *notificationRepository) Delete(ctx context.Context, id string) error {
 	}
 
 	return nil
-}
-
-func toNotificationModel(notification entity.Notification) NotificationModel {
-	return NotificationModel{
-		ID:        notification.ID,
-		Recipient: notification.Recipient,
-		Title:     notification.Title,
-		Content:   notification.Content,
-		Channel:   string(notification.Channel),
-		CreatedAt: notification.CreatedAt,
-		UpdatedAt: notification.UpdatedAt,
-	}
-}
-
-func toNotificationDomain(model NotificationModel) entity.Notification {
-	return entity.Notification{
-		ID:        model.ID,
-		Recipient: model.Recipient,
-		Title:     model.Title,
-		Content:   model.Content,
-		Channel:   entity.Channel(model.Channel),
-		CreatedAt: model.CreatedAt,
-		UpdatedAt: model.UpdatedAt,
-	}
 }

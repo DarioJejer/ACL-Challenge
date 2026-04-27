@@ -7,11 +7,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Dependencies groups handler dependencies for router initialization.
-// It is intentionally empty for the stub phase and can be expanded later.
-type Dependencies struct{}
+type Dependencies struct {
+	UserHandler         *handler.UserHandler
+	NotificationHandler *handler.NotificationHandler
+}
 
-func NewRouter(_ Dependencies) *gin.Engine {
+func NewRouter(deps Dependencies) *gin.Engine {
 	r := gin.New()
 	r.Use(gin.Recovery())
 	r.Use(middleware.RequestLogger())
@@ -32,16 +33,16 @@ func NewRouter(_ Dependencies) *gin.Engine {
 
 	notifications := protected.Group("/notifications")
 
-	notifications.GET("/", handler.ListNotifications)
-	notifications.POST("/", handler.CreateNotification)
-	notifications.GET("/:id", handler.GetNotification)
-	notifications.PUT("/:id", handler.UpdateNotification)
-	notifications.DELETE("/:id", handler.DeleteNotification)
+	notifications.GET("/", deps.NotificationHandler.ListNotifications)
+	notifications.POST("/", deps.NotificationHandler.CreateNotification)
+	notifications.GET("/:id", deps.NotificationHandler.GetNotification)
+	notifications.PUT("/:id", deps.NotificationHandler.UpdateNotification)
+	notifications.DELETE("/:id", deps.NotificationHandler.DeleteNotification)
 
 	users := protected.Group("/users")
 
-	users.PUT("/:id", handler.UpdateUser)
-	users.DELETE("/:id", handler.DeleteUser)
+	users.PUT("/:id", deps.UserHandler.UpdateUser)
+	users.DELETE("/:id", deps.UserHandler.DeleteUser)
 
 	return r
 }

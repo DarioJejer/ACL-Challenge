@@ -26,9 +26,6 @@ func RunMigrations(db *sql.DB, migrationsPath string) error {
 	if err != nil {
 		return fmt.Errorf("create migrate instance: %w", err)
 	}
-	defer func() {
-		_, _ = m.Close()
-	}()
 
 	if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 		return fmt.Errorf("run up migrations: %w", err)

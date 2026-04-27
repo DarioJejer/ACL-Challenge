@@ -1,10 +1,12 @@
 package main
 
 import (
+	"acl-challenge/internal/api/handler"
 	"acl-challenge/internal/api/router"
 	"acl-challenge/internal/domain/entity"
 	notificationinfra "acl-challenge/internal/infrastructure/notification"
 	"acl-challenge/internal/infrastructure/persistence"
+	"acl-challenge/internal/usecase"
 	"log"
 	"log/slog"
 	"os"
@@ -55,9 +57,20 @@ func main() {
 		entity.ChannelSMS:              &notificationinfra.SMSSender{},
 		entity.ChannelPushNotification: &notificationinfra.PushSender{},
 	}
-	_ = senderRegistry
 
-	r := router.NewRouter(router.Dependencies{})
+	userRepo := persistence.NewUserRepository(db)
+	notifRepo := persistence.NewNotificationRepository(db)
+
+	userUC := usecase.NewUserUseCase(userRepo)
+	notifUC := usecase.NewNotificationUseCase(userRepo, notifRepo, senderRegistry)
+
+	userHandler := handler.NewUserHandler(userUC)
+	notifHandler := handler.NewNotificationHandler(notifUC)
+
+	r := router.NewRouter(router.Dependencies{
+		UserHandler:         userHandler,
+		NotificationHandler: notifHandler,
+	})
 	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = "8080"
