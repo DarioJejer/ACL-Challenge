@@ -15,7 +15,7 @@ type notificationRepository struct {
 	db *gorm.DB
 }
 
-func NewNotificationRepository(db *gorm.DB) domainrepo.INotificationRepository {
+func NewNotificationRepository(db *gorm.DB) domainrepo.NotificationRepository {
 	return &notificationRepository{db: db}
 }
 

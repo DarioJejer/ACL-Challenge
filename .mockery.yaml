@@ -1,0 +1,11 @@
+with-expecter: true
+dir: "{{.InterfaceDir}}/mocks"
+outpkg: mocks
+packages:
+  acl-challenge/internal/domain/repository:
+    interfaces:
+      UserRepository:
+      NotificationRepository:
+  acl-challenge/internal/domain/notification:
+    interfaces:
+      Sender:

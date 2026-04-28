@@ -6,7 +6,8 @@ import (
 	"acl-challenge/internal/domain/entity"
 )
 
-type INotificationRepository interface {
+//go:generate mockery --config ../../../.mockery.yaml
+type NotificationRepository interface {
 	Create(ctx context.Context, n *entity.Notification) error
 	FindByID(ctx context.Context, id string) (*entity.Notification, error)
 	FindAllByUserID(ctx context.Context, userID string) ([]entity.Notification, error)

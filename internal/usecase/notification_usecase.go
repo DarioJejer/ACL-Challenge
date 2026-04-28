@@ -16,14 +16,14 @@ import (
 )
 
 type NotificationUseCase struct {
-	userRepo         repository.IUserRepository
-	notificationRepo repository.INotificationRepository
+	userRepo         repository.UserRepository
+	notificationRepo repository.NotificationRepository
 	senders          domainnotification.SenderRegistry
 }
 
 func NewNotificationUseCase(
-	userRepo repository.IUserRepository,
-	notificationRepo repository.INotificationRepository,
+	userRepo repository.UserRepository,
+	notificationRepo repository.NotificationRepository,
 	senders domainnotification.SenderRegistry,
 ) *NotificationUseCase {
 	return &NotificationUseCase{

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"acl-challenge/internal/api/dtos/request"
 	"acl-challenge/internal/domain/entity"
@@ -15,10 +14,10 @@ import (
 )
 
 type UserUseCase struct {
-	repo repository.IUserRepository
+	repo repository.UserRepository
 }
 
-func NewUserUseCase(repo repository.IUserRepository) *UserUseCase {
+func NewUserUseCase(repo repository.UserRepository) *UserUseCase {
 	return &UserUseCase{repo: repo}
 }
 
@@ -47,7 +46,6 @@ func (uc *UserUseCase) UpdateUser(ctx context.Context, id string, input request.
 	if strings.TrimSpace(input.PasswordHash) != "" {
 		user.PasswordHash = input.PasswordHash
 	}
-	user.UpdatedAt = time.Now().UTC()
 
 	if err := uc.repo.Update(ctx, user); err != nil {
 		return nil, mapRepositoryError("usecase: user: update", err)
