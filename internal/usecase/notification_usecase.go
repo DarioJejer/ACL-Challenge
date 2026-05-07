@@ -33,30 +33,43 @@ func NewNotificationUseCase(
 	}
 }
 
-func (uc *NotificationUseCase) ListNotifications(ctx context.Context, userID string) ([]entity.Notification, error) {
-	notifications, err := uc.notificationRepo.FindAllByUserID(ctx, userID)
+// ListNotifications returns the notifications addressed to currentUserID.
+// The query is already scoped by user, so no separate ownership check runs.
+func (uc *NotificationUseCase) ListNotifications(ctx context.Context, currentUserID string) ([]entity.Notification, error) {
+	notifications, err := uc.notificationRepo.FindAllByUserID(ctx, currentUserID)
 	if err != nil {
 		return nil, mapRepositoryError("usecase: notification: list", err)
 	}
 	return notifications, nil
 }
 
-func (uc *NotificationUseCase) GetNotification(ctx context.Context, id string) (*entity.Notification, error) {
+// GetNotification fetches a notification by id and enforces that the caller
+// owns it. Non-owners receive ErrForbidden, identical to a 403.
+func (uc *NotificationUseCase) GetNotification(ctx context.Context, id, currentUserID string) (*entity.Notification, error) {
 	notification, err := uc.notificationRepo.FindByID(ctx, id)
 	if err != nil {
 		return nil, mapRepositoryError("usecase: notification: get", err)
 	}
+	if err := assertOwner(notification, currentUserID); err != nil {
+		return nil, err
+	}
 	return notification, nil
 }
 
-func (uc *NotificationUseCase) CreateNotification(ctx context.Context, input request.ResquestNotificationDTO) (*entity.Notification, error) {
-	if strings.TrimSpace(input.Recipient) == "" || input.Channel == "" || strings.TrimSpace(input.Title) == "" || strings.TrimSpace(input.Content) == "" {
+// CreateNotification creates a notification owned by currentUserID. The
+// recipient is always the authenticated caller — the request body cannot
+// override it.
+func (uc *NotificationUseCase) CreateNotification(ctx context.Context, currentUserID string, input request.ResquestNotificationDTO) (*entity.Notification, error) {
+	if strings.TrimSpace(currentUserID) == "" {
+		return nil, fmt.Errorf("usecase: notification: create: missing current user: %w", ErrUnauthorized)
+	}
+	if input.Channel == "" || strings.TrimSpace(input.Title) == "" || strings.TrimSpace(input.Content) == "" {
 		return nil, fmt.Errorf("usecase: notification: create: invalid input: %w", ErrInvalidInput)
 	}
 
-	_, err := uc.userRepo.FindByID(ctx, input.Recipient)
+	ownerID, err := uuid.Parse(currentUserID)
 	if err != nil {
-		return nil, mapRepositoryError("usecase: notification: create: find user", err)
+		return nil, fmt.Errorf("usecase: notification: create: invalid user id: %w", ErrInvalidInput)
 	}
 
 	sender, err := uc.senders.GetSender(input.Channel)
@@ -68,7 +81,7 @@ func (uc *NotificationUseCase) CreateNotification(ctx context.Context, input req
 	}
 
 	notification := &entity.Notification{
-		Recipient: uuid.MustParse(input.Recipient),
+		Recipient: ownerID,
 		Title:     input.Title,
 		Content:   input.Content,
 		Channel:   input.Channel,
@@ -90,9 +103,10 @@ func (uc *NotificationUseCase) CreateNotification(ctx context.Context, input req
 	return notification, nil
 }
 
-func (uc *NotificationUseCase) UpdateNotification(ctx context.Context, id string, input request.ResquestNotificationDTO) (*entity.Notification, error) {
-	if strings.TrimSpace(input.Recipient) == "" &&
-		strings.TrimSpace(input.Title) == "" &&
+// UpdateNotification fetches a notification by id, enforces ownership, then
+// applies the supplied field updates. The recipient (owner) cannot be changed.
+func (uc *NotificationUseCase) UpdateNotification(ctx context.Context, id, currentUserID string, input request.ResquestNotificationDTO) (*entity.Notification, error) {
+	if strings.TrimSpace(input.Title) == "" &&
 		strings.TrimSpace(input.Content) == "" &&
 		strings.TrimSpace(string(input.Channel)) == "" {
 		return nil, ErrInvalidInput
@@ -102,14 +116,10 @@ func (uc *NotificationUseCase) UpdateNotification(ctx context.Context, id string
 	if err != nil {
 		return nil, mapRepositoryError("usecase: notification: update: find", err)
 	}
-
-	if strings.TrimSpace(input.Recipient) != "" {
-		_, err = uc.userRepo.FindByID(ctx, input.Recipient)
-		if err != nil {
-			return nil, mapRepositoryError("usecase: notification: update: find user", err)
-		}
-		notification.Recipient = uuid.MustParse(input.Recipient)
+	if err := assertOwner(notification, currentUserID); err != nil {
+		return nil, err
 	}
+
 	if strings.TrimSpace(input.Title) != "" {
 		notification.Title = input.Title
 	}
@@ -134,9 +144,33 @@ func (uc *NotificationUseCase) UpdateNotification(ctx context.Context, id string
 	return updated, nil
 }
 
-func (uc *NotificationUseCase) DeleteNotification(ctx context.Context, id string) error {
+// DeleteNotification fetches a notification, enforces ownership, then deletes.
+func (uc *NotificationUseCase) DeleteNotification(ctx context.Context, id, currentUserID string) error {
+	notification, err := uc.notificationRepo.FindByID(ctx, id)
+	if err != nil {
+		return mapRepositoryError("usecase: notification: delete: find", err)
+	}
+	if err := assertOwner(notification, currentUserID); err != nil {
+		return err
+	}
+
 	if err := uc.notificationRepo.Delete(ctx, id); err != nil {
 		return mapRepositoryError("usecase: notification: delete", err)
+	}
+	return nil
+}
+
+// assertOwner returns ErrForbidden when the notification does not belong to
+// the supplied user. The recipient field is treated as the owner.
+func assertOwner(notification *entity.Notification, currentUserID string) error {
+	if notification == nil {
+		return fmt.Errorf("usecase: notification: ownership: nil notification: %w", ErrInternalServer)
+	}
+	if strings.TrimSpace(currentUserID) == "" {
+		return fmt.Errorf("usecase: notification: ownership: missing current user: %w", ErrUnauthorized)
+	}
+	if notification.Recipient.String() != currentUserID {
+		return fmt.Errorf("usecase: notification: ownership mismatch: %w", ErrForbidden)
 	}
 	return nil
 }

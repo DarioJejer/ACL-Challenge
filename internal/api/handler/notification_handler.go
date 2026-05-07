@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"acl-challenge/internal/api/dtos/request"
+	"acl-challenge/internal/api/middleware"
 	"acl-challenge/internal/usecase"
 
 	"github.com/gin-gonic/gin"
@@ -19,10 +20,10 @@ func NewNotificationHandler(notifUC *usecase.NotificationUseCase) *NotificationH
 }
 
 func (h *NotificationHandler) ListNotifications(c *gin.Context) {
-	userID := strings.TrimSpace(c.Param("userID"))
-	// TODO(auth): replace with JWT context
-	if userID == "" {
-		userID = "00000000-0000-0000-0000-000000000001"
+	userID, ok := middleware.GetUserIDFromContext(c)
+	if !ok {
+		logAndRespondWithError(c, usecase.ErrUnauthorized, "list notifications missing user context")
+		return
 	}
 
 	notifications, err := h.notifUC.ListNotifications(c.Request.Context(), userID)
@@ -35,21 +36,26 @@ func (h *NotificationHandler) ListNotifications(c *gin.Context) {
 }
 
 func (h *NotificationHandler) CreateNotification(c *gin.Context) {
+	userID, ok := middleware.GetUserIDFromContext(c)
+	if !ok {
+		logAndRespondWithError(c, usecase.ErrUnauthorized, "create notification missing user context")
+		return
+	}
+
 	var req request.ResquestNotificationDTO
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "create notification request body invalid")
 		return
 	}
 
-	if strings.TrimSpace(req.Recipient) == "" ||
-		strings.TrimSpace(req.Title) == "" ||
+	if strings.TrimSpace(req.Title) == "" ||
 		strings.TrimSpace(req.Content) == "" ||
 		strings.TrimSpace(string(req.Channel)) == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "create notification missing required fields")
 		return
 	}
 
-	notification, err := h.notifUC.CreateNotification(c.Request.Context(), req)
+	notification, err := h.notifUC.CreateNotification(c.Request.Context(), userID, req)
 	if err != nil {
 		logAndRespondWithError(c, err, "create notification failed")
 		return
@@ -59,13 +65,19 @@ func (h *NotificationHandler) CreateNotification(c *gin.Context) {
 }
 
 func (h *NotificationHandler) GetNotification(c *gin.Context) {
+	userID, ok := middleware.GetUserIDFromContext(c)
+	if !ok {
+		logAndRespondWithError(c, usecase.ErrUnauthorized, "get notification missing user context")
+		return
+	}
+
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "get notification id is required")
 		return
 	}
 
-	notification, err := h.notifUC.GetNotification(c.Request.Context(), id)
+	notification, err := h.notifUC.GetNotification(c.Request.Context(), id, userID)
 	if err != nil {
 		logAndRespondWithError(c, err, "get notification failed")
 		return
@@ -75,6 +87,12 @@ func (h *NotificationHandler) GetNotification(c *gin.Context) {
 }
 
 func (h *NotificationHandler) UpdateNotification(c *gin.Context) {
+	userID, ok := middleware.GetUserIDFromContext(c)
+	if !ok {
+		logAndRespondWithError(c, usecase.ErrUnauthorized, "update notification missing user context")
+		return
+	}
+
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "update notification id is required")
@@ -89,13 +107,12 @@ func (h *NotificationHandler) UpdateNotification(c *gin.Context) {
 
 	if strings.TrimSpace(req.Title) == "" &&
 		strings.TrimSpace(req.Content) == "" &&
-		strings.TrimSpace(string(req.Channel)) == "" &&
-		strings.TrimSpace(req.Recipient) == "" {
+		strings.TrimSpace(string(req.Channel)) == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "update notification has no fields to update")
 		return
 	}
 
-	notification, err := h.notifUC.UpdateNotification(c.Request.Context(), id, req)
+	notification, err := h.notifUC.UpdateNotification(c.Request.Context(), id, userID, req)
 	if err != nil {
 		logAndRespondWithError(c, err, "update notification failed")
 		return
@@ -105,13 +122,19 @@ func (h *NotificationHandler) UpdateNotification(c *gin.Context) {
 }
 
 func (h *NotificationHandler) DeleteNotification(c *gin.Context) {
+	userID, ok := middleware.GetUserIDFromContext(c)
+	if !ok {
+		logAndRespondWithError(c, usecase.ErrUnauthorized, "delete notification missing user context")
+		return
+	}
+
 	id := strings.TrimSpace(c.Param("id"))
 	if id == "" {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "delete notification id is required")
 		return
 	}
 
-	if err := h.notifUC.DeleteNotification(c.Request.Context(), id); err != nil {
+	if err := h.notifUC.DeleteNotification(c.Request.Context(), id, userID); err != nil {
 		logAndRespondWithError(c, err, "delete notification failed")
 		return
 	}

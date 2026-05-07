@@ -8,6 +8,7 @@ var (
 	ErrInvalidInput       = errors.New("invalid input")
 	ErrUnsupportedChannel = errors.New("unsupported notification channel")
 	ErrUnauthorized       = errors.New("unauthorized")
+	ErrForbidden          = errors.New("access denied")
 	ErrDatabase           = errors.New("database error")
 	ErrInternalServer     = errors.New("internal server error")
 )

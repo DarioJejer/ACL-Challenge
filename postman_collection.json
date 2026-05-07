@@ -178,7 +178,7 @@
                         ],
                         "body": {
                             "mode": "raw",
-                            "raw": "{\n  \"recipient\": \"1\",\n  \"title\": \"Test\",\n  \"content\": \"Hello world\",\n  \"channel\": \"email\"\n}"
+                            "raw": "{\n  \"title\": \"Test\",\n  \"content\": \"Hello world\",\n  \"channel\": \"email\"\n}"
                         },
                         "url": {
                             "raw": "{{base_url}}/api/v1/notifications/",

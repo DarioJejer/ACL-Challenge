@@ -230,14 +230,13 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 		require.Equal(t, http.StatusOK, rec.Code)
 	})
 
-	t.Run("POST /api/v1/notifications - 201 created", func(t *testing.T) {
+	t.Run("POST /api/v1/notifications - 201 created (recipient is authenticated user)", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
 		user := seedUser(t, db, uuid.New())
 		rec := performAuthedJSONRequest(t, r, user.ID, http.MethodPost, "/api/v1/notifications/", map[string]any{
-			"recipient": user.ID.String(),
-			"title":     "Test",
-			"content":   "Hello world",
-			"channel":   string(entity.ChannelEmail),
+			"title":   "Test",
+			"content": "Hello world",
+			"channel": string(entity.ChannelEmail),
 		})
 		require.Equal(t, http.StatusCreated, rec.Code)
 
@@ -248,6 +247,24 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 		require.Equal(t, "Test", env.Data.Title)
 		require.Equal(t, "Hello world", env.Data.Content)
 		require.Equal(t, string(entity.ChannelEmail), env.Data.Channel)
+	})
+
+	t.Run("POST /api/v1/notifications - 201 ignores recipient in body", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		actor := seedUser(t, db, uuid.New())
+		other := seedUser(t, db, uuid.New())
+
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodPost, "/api/v1/notifications/", map[string]any{
+			"recipient": other.ID.String(),
+			"title":     "Spoofed",
+			"content":   "Should map to actor",
+			"channel":   string(entity.ChannelEmail),
+		})
+		require.Equal(t, http.StatusCreated, rec.Code)
+
+		var env notificationSuccessEnvelope
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &env))
+		require.Equal(t, actor.ID.String(), env.Data.Recipient, "recipient must be the authenticated user, not the body value")
 	})
 
 	t.Run("POST /api/v1/notifications - 400 bad request", func(t *testing.T) {
@@ -326,6 +343,66 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 		actor := seedUser(t, db, uuid.New())
 		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodDelete, "/api/v1/notifications/"+uuid.NewString(), nil)
 		require.Equal(t, http.StatusNotFound, rec.Code)
+	})
+
+	t.Run("GET /api/v1/notifications/:id - 403 not the owner", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		owner := seedUser(t, db, uuid.New())
+		intruder := seedUser(t, db, uuid.New())
+		n := seedNotification(t, db, owner.ID)
+
+		rec := performAuthedJSONRequest(t, r, intruder.ID, http.MethodGet, "/api/v1/notifications/"+n.ID.String(), nil)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+		require.Contains(t, rec.Body.String(), "access denied")
+	})
+
+	t.Run("PUT /api/v1/notifications/:id - 403 not the owner", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		owner := seedUser(t, db, uuid.New())
+		intruder := seedUser(t, db, uuid.New())
+		n := seedNotification(t, db, owner.ID)
+
+		rec := performAuthedJSONRequest(t, r, intruder.ID, http.MethodPut, "/api/v1/notifications/"+n.ID.String(), map[string]any{
+			"title": "Hijacked title",
+		})
+		require.Equal(t, http.StatusForbidden, rec.Code)
+
+		var reloaded persistence.NotificationModel
+		require.NoError(t, db.First(&reloaded, "id = ?", n.ID).Error)
+		require.Equal(t, n.Title, reloaded.Title, "intruder should not modify owner's notification")
+	})
+
+	t.Run("DELETE /api/v1/notifications/:id - 403 not the owner", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		owner := seedUser(t, db, uuid.New())
+		intruder := seedUser(t, db, uuid.New())
+		n := seedNotification(t, db, owner.ID)
+
+		rec := performAuthedJSONRequest(t, r, intruder.ID, http.MethodDelete, "/api/v1/notifications/"+n.ID.String(), nil)
+		require.Equal(t, http.StatusForbidden, rec.Code)
+
+		var count int64
+		require.NoError(t, db.Model(&persistence.NotificationModel{}).Where("id = ?", n.ID).Count(&count).Error)
+		require.Equal(t, int64(1), count, "owner's notification must remain after a 403 delete")
+	})
+
+	t.Run("GET /api/v1/notifications - list scoped to authenticated user", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		owner := seedUser(t, db, uuid.New())
+		other := seedUser(t, db, uuid.New())
+		seedNotification(t, db, owner.ID)
+		seedNotification(t, db, other.ID)
+
+		rec := performAuthedJSONRequest(t, r, owner.ID, http.MethodGet, "/api/v1/notifications/", nil)
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var listEnv struct {
+			Success bool                      `json:"success"`
+			Data    []response.NotificationDTO `json:"data"`
+		}
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &listEnv))
+		require.Len(t, listEnv.Data, 1, "list must only contain notifications for the authenticated user")
+		require.Equal(t, owner.ID.String(), listEnv.Data[0].Recipient)
 	})
 }
 
