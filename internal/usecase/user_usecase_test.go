@@ -22,12 +22,12 @@ func TestUserUseCase_Register(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name          string
-		input         usecase.RegisterInput
-		findByEmail   *entity.User
+		name           string
+		input          usecase.RegisterInput
+		findByEmail    *entity.User
 		findByEmailErr error
-		createErr     error
-		wantErrTarget error
+		createErr      error
+		wantErrTarget  error
 	}{
 		{
 			name:          "invalid input empty fields",
@@ -260,3 +260,4 @@ func TestUserUseCase_DeleteUser(t *testing.T) {
 		})
 	}
 }
+
