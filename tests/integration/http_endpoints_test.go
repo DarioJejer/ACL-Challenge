@@ -27,6 +27,109 @@ type notificationSuccessEnvelope struct {
 	Data    response.NotificationDTO `json:"data"`
 }
 
+// userSuccessEnvelope matches handler.Success JSON for user-shaped responses.
+type userSuccessEnvelope struct {
+	Success bool             `json:"success"`
+	Data    response.UserDTO `json:"data"`
+}
+
+func TestAuthEndpointsIntegration(t *testing.T) {
+	db := testhelper.SetupTestDB(t)
+	r := newTestRouter(db)
+
+	t.Run("POST /api/v1/auth/register - 201 sets auth cookie", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		rec := performJSONRequest(t, r, http.MethodPost, "/api/v1/auth/register", map[string]any{
+			"email":    "register@example.com",
+			"password": "password123",
+		})
+		require.Equal(t, http.StatusCreated, rec.Code)
+
+		var env userSuccessEnvelope
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &env))
+		require.True(t, env.Success)
+		require.Equal(t, "register@example.com", env.Data.Email)
+		require.NotEmpty(t, env.Data.ID)
+		require.NotContains(t, rec.Body.String(), "password")
+
+		require.True(t, hasAuthCookie(rec.Result().Cookies()), "auth_token cookie missing")
+	})
+
+	t.Run("POST /api/v1/auth/login - 200 happy path issues cookie", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		// register first to seed via the real flow.
+		regRec := performJSONRequest(t, r, http.MethodPost, "/api/v1/auth/register", map[string]any{
+			"email":    "login@example.com",
+			"password": "password123",
+		})
+		require.Equal(t, http.StatusCreated, regRec.Code)
+
+		rec := performJSONRequest(t, r, http.MethodPost, "/api/v1/auth/login", map[string]any{
+			"email":    "login@example.com",
+			"password": "password123",
+		})
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		var env userSuccessEnvelope
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &env))
+		require.True(t, env.Success)
+		require.Equal(t, "login@example.com", env.Data.Email)
+		require.True(t, hasAuthCookie(rec.Result().Cookies()), "auth_token cookie missing")
+	})
+
+	t.Run("POST /api/v1/auth/login - 401 wrong password", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		regRec := performJSONRequest(t, r, http.MethodPost, "/api/v1/auth/register", map[string]any{
+			"email":    "wrongpass@example.com",
+			"password": "password123",
+		})
+		require.Equal(t, http.StatusCreated, regRec.Code)
+
+		rec := performJSONRequest(t, r, http.MethodPost, "/api/v1/auth/login", map[string]any{
+			"email":    "wrongpass@example.com",
+			"password": "not-the-password",
+		})
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Body.String(), "invalid credentials")
+	})
+
+	t.Run("POST /api/v1/auth/login - 401 unknown email", func(t *testing.T) {
+		testhelper.TruncateAll(t, db)
+		rec := performJSONRequest(t, r, http.MethodPost, "/api/v1/auth/login", map[string]any{
+			"email":    "ghost@example.com",
+			"password": "password123",
+		})
+		require.Equal(t, http.StatusUnauthorized, rec.Code)
+		require.Contains(t, rec.Body.String(), "invalid credentials")
+	})
+
+	t.Run("POST /api/v1/auth/logout - 200 clears auth cookie", func(t *testing.T) {
+		rec := performJSONRequest(t, r, http.MethodPost, "/api/v1/auth/logout", nil)
+		require.Equal(t, http.StatusOK, rec.Code)
+
+		cookies := rec.Result().Cookies()
+		var clearing *http.Cookie
+		for _, ck := range cookies {
+			if ck.Name == "auth_token" {
+				clearing = ck
+				break
+			}
+		}
+		require.NotNil(t, clearing, "expected auth_token cookie reset")
+		require.Equal(t, -1, clearing.MaxAge)
+		require.Equal(t, "", clearing.Value)
+	})
+}
+
+func hasAuthCookie(cookies []*http.Cookie) bool {
+	for _, ck := range cookies {
+		if ck.Name == "auth_token" && ck.Value != "" {
+			return true
+		}
+	}
+	return false
+}
+
 func TestUserEndpointsIntegration(t *testing.T) {
 	db := testhelper.SetupTestDB(t)
 	r := newTestRouter(db)

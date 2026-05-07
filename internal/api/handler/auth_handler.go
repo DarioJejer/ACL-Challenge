@@ -1,14 +1,13 @@
 package handler
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"strings"
 
+	"acl-challenge/internal/api/middleware"
 	"acl-challenge/internal/usecase"
 
-	"github.com/google/uuid"
 	"github.com/gin-gonic/gin"
 )
 
@@ -51,18 +50,11 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		return
 	}
 
-	secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
-	if secret == "" {
-		secret = "dev-secret"
-	}
-
-	token, err := GenerateToken(user.ID, secret)
-	if err != nil {
+	if err := issueAuthCookie(c, user.ID.String()); err != nil {
 		logAndRespondWithError(c, usecase.ErrInternalServer, "register token generation failed")
 		return
 	}
 
-	SetAuthCookie(c, token)
 	Success(c, http.StatusCreated, toUserDTO(user))
 }
 
@@ -78,18 +70,42 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
-	Success(c, http.StatusOK, gin.H{"token": "token"})
-}
-
-// TODO(issue-25): replace with signed JWT implementation.
-func GenerateToken(userID uuid.UUID, secret string) (string, error) {
-	if userID == uuid.Nil || strings.TrimSpace(secret) == "" {
-		return "", fmt.Errorf("invalid token input")
+	user, err := h.userUC.Login(c.Request.Context(), usecase.LoginInput{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		logAndRespondWithError(c, err, "login failed")
+		return
 	}
-	return fmt.Sprintf("stub-token-%s", userID.String()), nil
+
+	if err := issueAuthCookie(c, user.ID.String()); err != nil {
+		logAndRespondWithError(c, usecase.ErrInternalServer, "login token generation failed")
+		return
+	}
+
+	Success(c, http.StatusOK, toUserDTO(user))
 }
 
-// TODO(issue-25): adjust cookie flags/options when JWT auth is fully implemented.
-func SetAuthCookie(c *gin.Context, token string) {
-	c.SetCookie("auth_token", token, 3600, "/", "", false, true)
+func (h *AuthHandler) Logout(c *gin.Context) {
+	middleware.ClearAuthCookie(c)
+	Success(c, http.StatusOK, nil)
+}
+
+// issueAuthCookie generates a JWT for userID and writes it to the auth cookie.
+// Centralised so register and login share the exact same logic.
+func issueAuthCookie(c *gin.Context, userID string) error {
+	token, err := middleware.GenerateToken(userID, jwtSecret())
+	if err != nil {
+		return err
+	}
+	middleware.SetAuthCookie(c, token)
+	return nil
+}
+
+func jwtSecret() string {
+	if s := strings.TrimSpace(os.Getenv("JWT_SECRET")); s != "" {
+		return s
+	}
+	return "dev-secret"
 }

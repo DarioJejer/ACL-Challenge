@@ -23,6 +23,7 @@ const (
 	Conflict            ErrorResponseCode = "CONFLICT"
 	InvalidInput        ErrorResponseCode = "INVALID_INPUT"
 	UnsupportedChannel  ErrorResponseCode = "UNSUPPORTED_CHANNEL"
+	Unauthorized        ErrorResponseCode = "UNAUTHORIZED"
 	DatabaseError       ErrorResponseCode = "DATABASE_ERROR"
 	InternalServerError ErrorResponseCode = "INTERNAL_SERVER_ERROR"
 )
@@ -37,6 +38,8 @@ func HTTPResponseFromError(err error) (int, Envelope) {
 		return http.StatusBadRequest, Envelope{Success: false, Code: string(InvalidInput), Message: usecase.ErrInvalidInput.Error()}
 	case errors.Is(err, usecase.ErrUnsupportedChannel):
 		return http.StatusUnprocessableEntity, Envelope{Success: false, Code: string(UnsupportedChannel), Message: usecase.ErrUnsupportedChannel.Error()}
+	case errors.Is(err, usecase.ErrUnauthorized):
+		return http.StatusUnauthorized, Envelope{Success: false, Code: string(Unauthorized), Message: "invalid credentials"}
 	case errors.Is(err, usecase.ErrDatabase):
 		return http.StatusInternalServerError, Envelope{Success: false, Code: string(DatabaseError), Message: usecase.ErrDatabase.Error()}
 	case errors.Is(err, usecase.ErrInternalServer):

@@ -25,6 +25,11 @@ type RegisterInput struct {
 	Password string
 }
 
+type LoginInput struct {
+	Email    string
+	Password string
+}
+
 func NewUserUseCase(repo repository.UserRepository) *UserUseCase {
 	return &UserUseCase{repo: repo}
 }
@@ -62,6 +67,32 @@ func (uc *UserUseCase) Register(ctx context.Context, input RegisterInput) (*enti
 
 	if err := uc.repo.Create(ctx, user); err != nil {
 		return nil, mapRepositoryError("usecase: user: register: create", err)
+	}
+
+	return user, nil
+}
+
+// Login authenticates a user by email and password.
+// Both "email not found" and "wrong password" return ErrUnauthorized so callers
+// cannot distinguish between them and probe for valid emails.
+func (uc *UserUseCase) Login(ctx context.Context, input LoginInput) (*entity.User, error) {
+	email := strings.TrimSpace(input.Email)
+	password := strings.TrimSpace(input.Password)
+
+	if email == "" || password == "" {
+		return nil, fmt.Errorf("usecase: user: login: invalid input: %w", ErrInvalidInput)
+	}
+
+	user, err := uc.repo.FindByEmail(ctx, email)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("usecase: user: login: email not found: %w", ErrUnauthorized)
+		}
+		return nil, mapRepositoryError("usecase: user: login: find by email", err)
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		return nil, fmt.Errorf("usecase: user: login: password mismatch: %w", ErrUnauthorized)
 	}
 
 	return user, nil

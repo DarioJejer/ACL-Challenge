@@ -28,6 +28,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 
 	auth.POST("/register", deps.AuthHandler.Register)
 	auth.POST("/login", deps.AuthHandler.Login)
+	auth.POST("/logout", deps.AuthHandler.Logout)
 
 	protected := v1.Group("/")
 	protected.Use(AuthMiddleware())

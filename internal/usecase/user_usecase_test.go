@@ -109,6 +109,89 @@ func TestUserUseCase_Register(t *testing.T) {
 	}
 }
 
+func TestUserUseCase_Login(t *testing.T) {
+	t.Parallel()
+
+	const validPassword = "password123"
+	hashed, err := bcrypt.GenerateFromPassword([]byte(validPassword), bcrypt.MinCost)
+	require.NoError(t, err)
+
+	storedUser := &entity.User{
+		ID:           uuid.New(),
+		Email:        "user@example.com",
+		PasswordHash: string(hashed),
+	}
+
+	tests := []struct {
+		name           string
+		input          usecase.LoginInput
+		findByEmail    *entity.User
+		findByEmailErr error
+		wantErrTarget  error
+	}{
+		{
+			name:          "invalid input empty fields",
+			input:         usecase.LoginInput{},
+			wantErrTarget: usecase.ErrInvalidInput,
+		},
+		{
+			name:           "email not found maps to unauthorized",
+			input:          usecase.LoginInput{Email: "user@example.com", Password: validPassword},
+			findByEmailErr: gorm.ErrRecordNotFound,
+			wantErrTarget:  usecase.ErrUnauthorized,
+		},
+		{
+			name:           "repository database error",
+			input:          usecase.LoginInput{Email: "user@example.com", Password: validPassword},
+			findByEmailErr: errors.New("db down"),
+			wantErrTarget:  usecase.ErrDatabase,
+		},
+		{
+			name:          "wrong password maps to unauthorized",
+			input:         usecase.LoginInput{Email: "user@example.com", Password: "nope"},
+			findByEmail:   storedUser,
+			wantErrTarget: usecase.ErrUnauthorized,
+		},
+		{
+			name:        "happy path",
+			input:       usecase.LoginInput{Email: "user@example.com", Password: validPassword},
+			findByEmail: storedUser,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repo := repomocks.NewMockUserRepository(t)
+			uc := usecase.NewUserUseCase(repo)
+			ctx, cancel := testhelper.NewContextWithTimeout()
+			defer cancel()
+
+			if tt.wantErrTarget == usecase.ErrInvalidInput {
+				got, err := uc.Login(ctx, tt.input)
+				require.Nil(t, got)
+				testhelper.AssertErrorIs(t, err, tt.wantErrTarget)
+				return
+			}
+
+			repo.EXPECT().FindByEmail(ctx, tt.input.Email).Return(tt.findByEmail, tt.findByEmailErr).Once()
+
+			got, err := uc.Login(ctx, tt.input)
+
+			if tt.wantErrTarget != nil {
+				require.Nil(t, got)
+				testhelper.AssertErrorIs(t, err, tt.wantErrTarget)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, storedUser.ID, got.ID)
+			require.Equal(t, storedUser.Email, got.Email)
+		})
+	}
+}
+
 func TestUserUseCase_GetUser(t *testing.T) {
 	t.Parallel()
 
