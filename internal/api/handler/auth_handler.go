@@ -1,11 +1,14 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"acl-challenge/internal/usecase"
 
+	"github.com/google/uuid"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,7 +22,15 @@ type loginRequest struct {
 	Password string `json:"password"`
 }
 
-func Register(c *gin.Context) {
+type AuthHandler struct {
+	userUC *usecase.UserUseCase
+}
+
+func NewAuthHandler(userUC *usecase.UserUseCase) *AuthHandler {
+	return &AuthHandler{userUC: userUC}
+}
+
+func (h *AuthHandler) Register(c *gin.Context) {
 	var req registerRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "register request body invalid")
@@ -31,10 +42,31 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	Success(c, http.StatusCreated, gin.H{"message": "user registered"})
+	user, err := h.userUC.Register(c.Request.Context(), usecase.RegisterInput{
+		Email:    req.Email,
+		Password: req.Password,
+	})
+	if err != nil {
+		logAndRespondWithError(c, err, "register failed")
+		return
+	}
+
+	secret := strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	if secret == "" {
+		secret = "dev-secret"
+	}
+
+	token, err := GenerateToken(user.ID, secret)
+	if err != nil {
+		logAndRespondWithError(c, usecase.ErrInternalServer, "register token generation failed")
+		return
+	}
+
+	SetAuthCookie(c, token)
+	Success(c, http.StatusCreated, toUserDTO(user))
 }
 
-func Login(c *gin.Context) {
+func (h *AuthHandler) Login(c *gin.Context) {
 	var req loginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		logAndRespondWithError(c, usecase.ErrInvalidInput, "login request body invalid")
@@ -47,4 +79,17 @@ func Login(c *gin.Context) {
 	}
 
 	Success(c, http.StatusOK, gin.H{"token": "token"})
+}
+
+// TODO(issue-25): replace with signed JWT implementation.
+func GenerateToken(userID uuid.UUID, secret string) (string, error) {
+	if userID == uuid.Nil || strings.TrimSpace(secret) == "" {
+		return "", fmt.Errorf("invalid token input")
+	}
+	return fmt.Sprintf("stub-token-%s", userID.String()), nil
+}
+
+// TODO(issue-25): adjust cookie flags/options when JWT auth is fully implemented.
+func SetAuthCookie(c *gin.Context, token string) {
+	c.SetCookie("auth_token", token, 3600, "/", "", false, true)
 }

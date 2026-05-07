@@ -1,6 +1,7 @@
 package usecase_test
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -11,9 +12,102 @@ import (
 	"acl-challenge/tests/testhelper"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+func TestUserUseCase_Register(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		input         usecase.RegisterInput
+		findByEmail   *entity.User
+		findByEmailErr error
+		createErr     error
+		wantErrTarget error
+	}{
+		{
+			name:          "invalid input empty fields",
+			input:         usecase.RegisterInput{},
+			wantErrTarget: usecase.ErrInvalidInput,
+		},
+		{
+			name:          "invalid email format",
+			input:         usecase.RegisterInput{Email: "not-an-email", Password: "password123"},
+			wantErrTarget: usecase.ErrInvalidInput,
+		},
+		{
+			name:          "email already exists",
+			input:         usecase.RegisterInput{Email: "existing@example.com", Password: "password123"},
+			findByEmail:   &entity.User{ID: uuid.New(), Email: "existing@example.com"},
+			wantErrTarget: usecase.ErrConflict,
+		},
+		{
+			name:           "find by email database error",
+			input:          usecase.RegisterInput{Email: "new@example.com", Password: "password123"},
+			findByEmailErr: errors.New("db down"),
+			wantErrTarget:  usecase.ErrDatabase,
+		},
+		{
+			name:           "create database error",
+			input:          usecase.RegisterInput{Email: "new@example.com", Password: "password123"},
+			findByEmailErr: gorm.ErrRecordNotFound,
+			createErr:      errors.New("insert failed"),
+			wantErrTarget:  usecase.ErrDatabase,
+		},
+		{
+			name:           "happy path",
+			input:          usecase.RegisterInput{Email: "new@example.com", Password: "password123"},
+			findByEmailErr: gorm.ErrRecordNotFound,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			repo := repomocks.NewMockUserRepository(t)
+			uc := usecase.NewUserUseCase(repo)
+			ctx, cancel := testhelper.NewContextWithTimeout()
+			defer cancel()
+
+			if tt.wantErrTarget == usecase.ErrInvalidInput {
+				got, err := uc.Register(ctx, tt.input)
+				require.Nil(t, got)
+				testhelper.AssertErrorIs(t, err, tt.wantErrTarget)
+				return
+			}
+
+			repo.EXPECT().FindByEmail(ctx, tt.input.Email).Return(tt.findByEmail, tt.findByEmailErr).Once()
+			if errors.Is(tt.findByEmailErr, gorm.ErrRecordNotFound) {
+				repo.EXPECT().Create(ctx, mock.AnythingOfType("*entity.User")).RunAndReturn(func(_ context.Context, user *entity.User) error {
+					if tt.createErr != nil {
+						return tt.createErr
+					}
+					return nil
+				}).Once()
+			}
+
+			got, err := uc.Register(ctx, tt.input)
+
+			if tt.wantErrTarget != nil {
+				require.Nil(t, got)
+				testhelper.AssertErrorIs(t, err, tt.wantErrTarget)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.NotEqual(t, uuid.Nil, got.ID)
+			require.Equal(t, tt.input.Email, got.Email)
+			require.NotEmpty(t, got.PasswordHash)
+			require.NotEqual(t, tt.input.Password, got.PasswordHash)
+			require.NoError(t, bcrypt.CompareHashAndPassword([]byte(got.PasswordHash), []byte(tt.input.Password)))
+		})
+	}
+}
 
 func TestUserUseCase_GetUser(t *testing.T) {
 	t.Parallel()

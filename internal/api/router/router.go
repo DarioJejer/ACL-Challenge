@@ -8,6 +8,7 @@ import (
 )
 
 type Dependencies struct {
+	AuthHandler         *handler.AuthHandler
 	UserHandler         *handler.UserHandler
 	NotificationHandler *handler.NotificationHandler
 }
@@ -25,8 +26,8 @@ func NewRouter(deps Dependencies) *gin.Engine {
 
 	auth := v1.Group("/auth")
 
-	auth.POST("/register", handler.Register)
-	auth.POST("/login", handler.Login)
+	auth.POST("/register", deps.AuthHandler.Register)
+	auth.POST("/login", deps.AuthHandler.Login)
 
 	protected := v1.Group("/")
 	protected.Use(AuthMiddleware())

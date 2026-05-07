@@ -4,12 +4,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
 	"strings"
 
 	"acl-challenge/internal/api/dtos/request"
 	"acl-challenge/internal/domain/entity"
 	"acl-challenge/internal/domain/repository"
 
+	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -17,8 +20,51 @@ type UserUseCase struct {
 	repo repository.UserRepository
 }
 
+type RegisterInput struct {
+	Email    string
+	Password string
+}
+
 func NewUserUseCase(repo repository.UserRepository) *UserUseCase {
 	return &UserUseCase{repo: repo}
+}
+
+func (uc *UserUseCase) Register(ctx context.Context, input RegisterInput) (*entity.User, error) {
+	email := strings.TrimSpace(input.Email)
+	password := strings.TrimSpace(input.Password)
+
+	if email == "" || password == "" {
+		return nil, fmt.Errorf("usecase: user: register: invalid input: %w", ErrInvalidInput)
+	}
+
+	if _, err := mail.ParseAddress(email); err != nil {
+		return nil, fmt.Errorf("usecase: user: register: invalid email format: %w", ErrInvalidInput)
+	}
+
+	_, err := uc.repo.FindByEmail(ctx, email)
+	if err == nil {
+		return nil, fmt.Errorf("usecase: user: register: email already exists: %w", ErrConflict)
+	}
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil, mapRepositoryError("usecase: user: register: find by email", err)
+	}
+
+	passwordHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("usecase: user: register: hash password: %w", ErrInternalServer)
+	}
+
+	user := &entity.User{
+		ID:           uuid.New(),
+		Email:        email,
+		PasswordHash: string(passwordHash),
+	}
+
+	if err := uc.repo.Create(ctx, user); err != nil {
+		return nil, mapRepositoryError("usecase: user: register: create", err)
+	}
+
+	return user, nil
 }
 
 func (uc *UserUseCase) GetUser(ctx context.Context, id string) (*entity.User, error) {

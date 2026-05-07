@@ -64,10 +64,12 @@ func main() {
 	userUC := usecase.NewUserUseCase(userRepo)
 	notifUC := usecase.NewNotificationUseCase(userRepo, notifRepo, senderRegistry)
 
+	authHandler := handler.NewAuthHandler(userUC)
 	userHandler := handler.NewUserHandler(userUC)
 	notifHandler := handler.NewNotificationHandler(notifUC)
 
 	r := router.NewRouter(router.Dependencies{
+		AuthHandler:         authHandler,
 		UserHandler:         userHandler,
 		NotificationHandler: notifHandler,
 	})
