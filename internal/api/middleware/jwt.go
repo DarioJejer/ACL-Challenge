@@ -79,3 +79,13 @@ func ClearAuthCookie(c *gin.Context) {
 func isProduction() bool {
 	return strings.EqualFold(strings.TrimSpace(os.Getenv("APP_ENV")), "production")
 }
+
+// JWTSecret returns the configured JWT_SECRET, falling back to a development
+// default when unset so local runs and tests do not crash. Production
+// deployments are expected to always provide an explicit secret.
+func JWTSecret() string {
+	if s := strings.TrimSpace(os.Getenv("JWT_SECRET")); s != "" {
+		return s
+	}
+	return "dev-secret"
+}

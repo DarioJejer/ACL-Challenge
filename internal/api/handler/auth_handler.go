@@ -2,7 +2,6 @@ package handler
 
 import (
 	"net/http"
-	"os"
 	"strings"
 
 	"acl-challenge/internal/api/middleware"
@@ -95,17 +94,10 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 // issueAuthCookie generates a JWT for userID and writes it to the auth cookie.
 // Centralised so register and login share the exact same logic.
 func issueAuthCookie(c *gin.Context, userID string) error {
-	token, err := middleware.GenerateToken(userID, jwtSecret())
+	token, err := middleware.GenerateToken(userID, middleware.JWTSecret())
 	if err != nil {
 		return err
 	}
 	middleware.SetAuthCookie(c, token)
 	return nil
-}
-
-func jwtSecret() string {
-	if s := strings.TrimSpace(os.Getenv("JWT_SECRET")); s != "" {
-		return s
-	}
-	return "dev-secret"
 }

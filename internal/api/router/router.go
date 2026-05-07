@@ -31,7 +31,7 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	auth.POST("/logout", deps.AuthHandler.Logout)
 
 	protected := v1.Group("/")
-	protected.Use(AuthMiddleware())
+	protected.Use(middleware.ValidateToken(middleware.JWTSecret()))
 
 	notifications := protected.Group("/notifications")
 
@@ -47,12 +47,4 @@ func NewRouter(deps Dependencies) *gin.Engine {
 	users.DELETE("/:id", deps.UserHandler.DeleteUser)
 
 	return r
-}
-
-// AuthMiddleware is a temporary authentication middleware stub.
-// JWT validation will be added in a later milestone.
-func AuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		c.Next()
-	}
 }

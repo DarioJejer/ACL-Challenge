@@ -130,6 +130,31 @@ func hasAuthCookie(cookies []*http.Cookie) bool {
 	return false
 }
 
+func TestProtectedRoutesRequireAuth(t *testing.T) {
+	db := testhelper.SetupTestDB(t)
+	r := newTestRouter(db)
+
+	cases := []struct {
+		method string
+		path   string
+	}{
+		{http.MethodGet, "/api/v1/notifications/"},
+		{http.MethodPost, "/api/v1/notifications/"},
+		{http.MethodGet, "/api/v1/notifications/" + uuid.NewString()},
+		{http.MethodPut, "/api/v1/users/" + uuid.NewString()},
+		{http.MethodDelete, "/api/v1/users/" + uuid.NewString()},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.method+" "+c.path, func(t *testing.T) {
+			rec := performJSONRequest(t, r, c.method, c.path, nil)
+			require.Equal(t, http.StatusUnauthorized, rec.Code)
+			require.Contains(t, rec.Body.String(), "authentication required")
+		})
+	}
+}
+
 func TestUserEndpointsIntegration(t *testing.T) {
 	db := testhelper.SetupTestDB(t)
 	r := newTestRouter(db)
@@ -138,7 +163,7 @@ func TestUserEndpointsIntegration(t *testing.T) {
 		testhelper.TruncateAll(t, db)
 		user := seedUser(t, db, uuid.New())
 
-		rec := performJSONRequest(t, r, http.MethodPut, "/api/v1/users/"+user.ID.String(), map[string]any{
+		rec := performAuthedJSONRequest(t, r, user.ID, http.MethodPut, "/api/v1/users/"+user.ID.String(), map[string]any{
 			"email": "updated@example.com",
 		})
 
@@ -151,7 +176,8 @@ func TestUserEndpointsIntegration(t *testing.T) {
 
 	t.Run("PUT /api/v1/users/:id - 404 not found", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
-		rec := performJSONRequest(t, r, http.MethodPut, "/api/v1/users/"+uuid.NewString(), map[string]any{
+		actor := seedUser(t, db, uuid.New())
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodPut, "/api/v1/users/"+uuid.NewString(), map[string]any{
 			"email": "updated@example.com",
 		})
 		require.Equal(t, http.StatusNotFound, rec.Code)
@@ -159,14 +185,15 @@ func TestUserEndpointsIntegration(t *testing.T) {
 
 	t.Run("PUT /api/v1/users/:id - 400 bad request", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
-		rec := performJSONRequest(t, r, http.MethodPut, "/api/v1/users/"+uuid.NewString(), map[string]any{})
+		actor := seedUser(t, db, uuid.New())
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodPut, "/api/v1/users/"+uuid.NewString(), map[string]any{})
 		require.Equal(t, http.StatusBadRequest, rec.Code)
 	})
 
 	t.Run("DELETE /api/v1/users/:id - 204 deleted", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
 		user := seedUser(t, db, uuid.New())
-		rec := performJSONRequest(t, r, http.MethodDelete, "/api/v1/users/"+user.ID.String(), nil)
+		rec := performAuthedJSONRequest(t, r, user.ID, http.MethodDelete, "/api/v1/users/"+user.ID.String(), nil)
 		require.Equal(t, http.StatusNoContent, rec.Code)
 
 		var count int64
@@ -176,7 +203,8 @@ func TestUserEndpointsIntegration(t *testing.T) {
 
 	t.Run("DELETE /api/v1/users/:id - 404 not found", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
-		rec := performJSONRequest(t, r, http.MethodDelete, "/api/v1/users/"+uuid.NewString(), nil)
+		actor := seedUser(t, db, uuid.New())
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodDelete, "/api/v1/users/"+uuid.NewString(), nil)
 		require.Equal(t, http.StatusNotFound, rec.Code)
 	})
 }
@@ -187,7 +215,8 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 
 	t.Run("GET /api/v1/notifications - 200 list empty", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
-		rec := performJSONRequest(t, r, http.MethodGet, "/api/v1/notifications/", nil)
+		actor := seedUser(t, db, uuid.New())
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodGet, "/api/v1/notifications/", nil)
 		require.Equal(t, http.StatusOK, rec.Code)
 	})
 
@@ -197,14 +226,14 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 		seedUser(t, db, fixedUserID)
 		seedNotification(t, db, fixedUserID)
 
-		rec := performJSONRequest(t, r, http.MethodGet, "/api/v1/notifications/", nil)
+		rec := performAuthedJSONRequest(t, r, fixedUserID, http.MethodGet, "/api/v1/notifications/", nil)
 		require.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("POST /api/v1/notifications - 201 created", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
 		user := seedUser(t, db, uuid.New())
-		rec := performJSONRequest(t, r, http.MethodPost, "/api/v1/notifications/", map[string]any{
+		rec := performAuthedJSONRequest(t, r, user.ID, http.MethodPost, "/api/v1/notifications/", map[string]any{
 			"recipient": user.ID.String(),
 			"title":     "Test",
 			"content":   "Hello world",
@@ -223,7 +252,8 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 
 	t.Run("POST /api/v1/notifications - 400 bad request", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
-		rec := performJSONRequest(t, r, http.MethodPost, "/api/v1/notifications/", map[string]any{
+		actor := seedUser(t, db, uuid.New())
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodPost, "/api/v1/notifications/", map[string]any{
 			"title": "missing fields",
 		})
 		require.Equal(t, http.StatusBadRequest, rec.Code)
@@ -234,7 +264,7 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 		user := seedUser(t, db, uuid.New())
 		n := seedNotification(t, db, user.ID)
 
-		rec := performJSONRequest(t, r, http.MethodGet, "/api/v1/notifications/"+n.ID.String(), nil)
+		rec := performAuthedJSONRequest(t, r, user.ID, http.MethodGet, "/api/v1/notifications/"+n.ID.String(), nil)
 		require.Equal(t, http.StatusOK, rec.Code)
 
 		var env notificationSuccessEnvelope
@@ -246,7 +276,8 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 
 	t.Run("GET /api/v1/notifications/:id - 404 not found", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
-		rec := performJSONRequest(t, r, http.MethodGet, "/api/v1/notifications/"+uuid.NewString(), nil)
+		actor := seedUser(t, db, uuid.New())
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodGet, "/api/v1/notifications/"+uuid.NewString(), nil)
 		require.Equal(t, http.StatusNotFound, rec.Code)
 	})
 
@@ -254,7 +285,7 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 		testhelper.TruncateAll(t, db)
 		user := seedUser(t, db, uuid.New())
 		n := seedNotification(t, db, user.ID)
-		rec := performJSONRequest(t, r, http.MethodPut, "/api/v1/notifications/"+n.ID.String(), map[string]any{
+		rec := performAuthedJSONRequest(t, r, user.ID, http.MethodPut, "/api/v1/notifications/"+n.ID.String(), map[string]any{
 			"title": "Updated title",
 		})
 		require.Equal(t, http.StatusOK, rec.Code)
@@ -270,7 +301,8 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 
 	t.Run("PUT /api/v1/notifications/:id - 404 not found", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
-		rec := performJSONRequest(t, r, http.MethodPut, "/api/v1/notifications/"+uuid.NewString(), map[string]any{
+		actor := seedUser(t, db, uuid.New())
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodPut, "/api/v1/notifications/"+uuid.NewString(), map[string]any{
 			"title": "Updated title",
 		})
 		require.Equal(t, http.StatusNotFound, rec.Code)
@@ -281,7 +313,7 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 		user := seedUser(t, db, uuid.New())
 		n := seedNotification(t, db, user.ID)
 
-		rec := performJSONRequest(t, r, http.MethodDelete, "/api/v1/notifications/"+n.ID.String(), nil)
+		rec := performAuthedJSONRequest(t, r, user.ID, http.MethodDelete, "/api/v1/notifications/"+n.ID.String(), nil)
 		require.Equal(t, http.StatusNoContent, rec.Code)
 
 		var notifCount int64
@@ -291,7 +323,8 @@ func TestNotificationEndpointsIntegration(t *testing.T) {
 
 	t.Run("DELETE /api/v1/notifications/:id - 404 not found", func(t *testing.T) {
 		testhelper.TruncateAll(t, db)
-		rec := performJSONRequest(t, r, http.MethodDelete, "/api/v1/notifications/"+uuid.NewString(), nil)
+		actor := seedUser(t, db, uuid.New())
+		rec := performAuthedJSONRequest(t, r, actor.ID, http.MethodDelete, "/api/v1/notifications/"+uuid.NewString(), nil)
 		require.Equal(t, http.StatusNotFound, rec.Code)
 	})
 }
@@ -332,6 +365,28 @@ func performJSONRequest(t *testing.T, h http.Handler, method, path string, body 
 
 	req := httptest.NewRequest(method, path, bytes.NewReader(payload))
 	req.Header.Set("Content-Type", "application/json")
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	return rec
+}
+
+// performAuthedJSONRequest mints a valid auth cookie for actorID and forwards
+// it on the request, exercising protected routes through the real ValidateToken
+// middleware.
+func performAuthedJSONRequest(t *testing.T, h http.Handler, actorID uuid.UUID, method, path string, body any) *httptest.ResponseRecorder {
+	t.Helper()
+
+	var payload []byte
+	var err error
+	if body != nil {
+		payload, err = json.Marshal(body)
+		require.NoError(t, err)
+	}
+
+	req := httptest.NewRequest(method, path, bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(testhelper.AuthCookieFor(t, actorID.String()))
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)
